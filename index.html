@@ -660,7 +660,7 @@
 
     var curBal = state.balance.length ? state.balance[state.balance.length - 1] : null;
     document.getElementById("kpiCurrent").innerHTML = curBal ? fmtEokMainHtml(curBal.amount) : "-";
-    document.getElementById("kpiCurrentSub").textContent = curBal ? formatDotDate(curBal.dateRaw) : "-";
+    document.getElementById("kpiCurrentSub").textContent = curBal ? (formatDotDate(curBal.dateRaw) + " 기준") : "-";
 
     var last6 = arr.slice(-6);
     renderLineChart(last6);
