@@ -72,7 +72,7 @@
   /* KPI */
   .kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px;}
   .kpi-card{background:#fff; border:1px solid var(--border); border-radius:10px; padding:18px 20px;}
-  .kpi-card.end-balance{border-top:3px solid var(--navy);}
+  .kpi-card.end-balance, .kpi-card.base-balance{border-top:3px solid var(--navy);}
   .kpi-label{font-size:13px; color:var(--text-sub); margin-bottom:10px;}
   .kpi-value{font-size:22px; font-weight:700; color:var(--deep-navy);}
   .kpi-value .unit{font-size:12px; font-weight:500; color:var(--text-faint); margin-left:3px;}
@@ -170,7 +170,7 @@
     <main class="main" id="main">
       <div id="page-dashboard" class="page">
         <div class="kpi-grid">
-          <div class="kpi-card">
+          <div class="kpi-card base-balance">
             <div class="kpi-label">기초잔액</div>
             <div class="kpi-value" id="kpiBase">-</div>
             <div class="kpi-sub" id="kpiBaseSub">전월 말 이월 기준</div>
