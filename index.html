@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>월간 자금보고</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <style>
   :root{
     --navy:#1F3A5F;
@@ -72,7 +73,8 @@
   /* KPI */
   .kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px;}
   .kpi-card{background:#fff; border:1px solid var(--border); border-radius:10px; padding:18px 20px;}
-  .kpi-card.end-balance, .kpi-card.base-balance{border-top:3px solid var(--navy);}
+  .kpi-card.end-balance{border-top:3px solid var(--navy);}
+  .kpi-card.current-balance{border-top:3px solid #C0392B;}
   .kpi-label{font-size:13px; color:var(--text-sub); margin-bottom:10px;}
   .kpi-value{font-size:22px; font-weight:700; color:var(--deep-navy);}
   .kpi-value .unit{font-size:12px; font-weight:500; color:var(--text-faint); margin-left:3px;}
@@ -180,11 +182,6 @@
     <main class="main" id="main">
       <div id="page-dashboard" class="page">
         <div class="kpi-grid">
-          <div class="kpi-card base-balance">
-            <div class="kpi-label">기초잔액</div>
-            <div class="kpi-value" id="kpiBase">-</div>
-            <div class="kpi-sub" id="kpiBaseSub">전월 말 이월 기준</div>
-          </div>
           <div class="kpi-card">
             <div class="kpi-label">총수입</div>
             <div class="kpi-value" id="kpiIncome">-</div>
@@ -199,6 +196,11 @@
             <div class="kpi-label">기말잔액</div>
             <div class="kpi-value" id="kpiEnd">-</div>
             <div class="kpi-sub" id="kpiEndSub">-</div>
+          </div>
+          <div class="kpi-card current-balance">
+            <div class="kpi-label">현재잔액</div>
+            <div class="kpi-value" id="kpiCurrent">-</div>
+            <div class="kpi-sub" id="kpiCurrentSub">-</div>
           </div>
         </div>
 
@@ -257,8 +259,9 @@
 
   var SUMMARY_URL = "https://docs.google.com/spreadsheets/d/1dAvuc4xukEkAT_p7Seo6-yCaXKZY0fa4Ls9n3h14RIQ/edit?gid=0#gid=0";
   var DETAIL_URL  = "https://docs.google.com/spreadsheets/d/1dAvuc4xukEkAT_p7Seo6-yCaXKZY0fa4Ls9n3h14RIQ/edit?gid=2000332474#gid=2000332474";
+  var BALANCE_URL = "https://docs.google.com/spreadsheets/d/1dAvuc4xukEkAT_p7Seo6-yCaXKZY0fa4Ls9n3h14RIQ/edit?gid=1821335135#gid=1821335135";
 
-  var state = { summary: [], detail: [] };
+  var state = { summary: [], detail: [], balance: [] };
   var charts = { balance: null, io: null };
 
   /* ---------------- URL / fetch helpers ---------------- */
@@ -372,6 +375,18 @@
     return { monthCols: monthCols, entries: entries };
   }
 
+  function buildBalance(rows){
+    var out = [];
+    for (var i = 1; i < rows.length; i++){
+      var row = rows[i];
+      if (!row || row.length < 2) continue;
+      var dateRaw = (row[0] || "").trim();
+      if (!dateRaw) continue;
+      out.push({ dateRaw: dateRaw, amount: parseAmount(row[1]) });
+    }
+    return out;
+  }
+
   /* ---------------- Formatting helpers ---------------- */
 
   function round1(n){ return Math.round(n * 10) / 10; }
@@ -419,6 +434,12 @@
     return y + ". " + String(m).padStart(2,"0") + ". " + String(lastDay).padStart(2,"0");
   }
 
+  function formatDotDate(raw){
+    var m = String(raw).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+    if (!m) return String(raw);
+    return m[1] + ". " + String(parseInt(m[2],10)).padStart(2,"0") + ". " + String(parseInt(m[3],10)).padStart(2,"0");
+  }
+
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, function(c){
       return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
@@ -444,6 +465,8 @@
   });
 
   /* ---------------- Dashboard ---------------- */
+
+  if (window.Chart && window.ChartDataLabels) { Chart.register(ChartDataLabels); }
 
   function chartBaseOptions(showLegend){
     return {
@@ -472,7 +495,7 @@
       },
       scales: {
         x: { grid: { display: false }, ticks: { color: "#7C8898", font: { size: 11.5 } } },
-        y: { grid: { color: "#EEF1F5" }, ticks: { color: "#7C8898", font: { size: 11.5 }, callback: function(v){ return v + "억"; } } }
+        y: { grace: "12%", grid: { color: "#EEF1F5" }, ticks: { color: "#7C8898", font: { size: 11.5 }, callback: function(v){ return v + "억"; } } }
       }
     };
   }
@@ -506,7 +529,17 @@
           pointBorderColor: "#1F3A5F",
           pointBorderWidth: 2,
           pointRadius: 4,
-          pointHoverRadius: 5
+          pointHoverRadius: 5,
+          datalabels: {
+            display: true,
+            color: "#1F3A5F",
+            font: { size: 11, weight: "bold" },
+            anchor: "end",
+            align: "top",
+            formatter: function(value){
+              return value.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            }
+          }
         }]
       },
       options: chartBaseOptions(false)
@@ -526,9 +559,14 @@
       { key: "expInv", label: "지출-투자", color: "#EBCB8B", stack: "expense" }
     ];
     var stackTotalLabel = { income: "수입 계", expense: "지출 계" };
+    var stackLabelColor = { income: "#1F3A5F", expense: "#B07E1F" };
 
-    var datasets = series.map(function(s){
-      return {
+    var datasets = series.map(function(s, idx){
+      var isLastInStack = true;
+      for (var j = idx + 1; j < series.length; j++){
+        if (series[j].stack === s.stack) { isLastInStack = false; break; }
+      }
+      var ds = {
         label: s.label,
         stack: s.stack,
         data: data.map(function(d){ return round1(d[s.key] / 1e8); }),
@@ -537,6 +575,26 @@
         borderWidth: 1,
         maxBarThickness: 28
       };
+      if (isLastInStack){
+        ds.datalabels = {
+          display: true,
+          color: stackLabelColor[s.stack],
+          font: { size: 11, weight: "bold" },
+          anchor: "end",
+          align: "top",
+          formatter: function(value, context){
+            var stackId = context.dataset.stack;
+            var sum = 0;
+            context.chart.data.datasets.forEach(function(d){
+              if (d.stack === stackId) sum += d.data[context.dataIndex];
+            });
+            return round1(sum).toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+          }
+        };
+      } else {
+        ds.datalabels = { display: false };
+      }
+      return ds;
     });
 
     if (charts.io) charts.io.destroy();
@@ -581,7 +639,7 @@
         },
         scales: {
           x: { stacked: true, grid: { display: false }, ticks: { color: "#7C8898", font: { size: 11.5 } } },
-          y: { stacked: true, grid: { color: "#EEF1F5" }, ticks: { color: "#7C8898", font: { size: 11.5 }, callback: function(v){ return v + "억"; } } }
+          y: { stacked: true, grace: "12%", grid: { color: "#EEF1F5" }, ticks: { color: "#7C8898", font: { size: 11.5 }, callback: function(v){ return v + "억"; } } }
         }
       }
     });
@@ -592,7 +650,6 @@
     var latest = arr[arr.length - 1];
     var prev = arr.length > 1 ? arr[arr.length - 2] : null;
 
-    document.getElementById("kpiBase").innerHTML = fmtEokMainHtml(latest.base);
     document.getElementById("kpiIncome").innerHTML = fmtEokMainHtml(latest.incomeTotal);
     document.getElementById("kpiExpense").innerHTML = fmtEokMainHtml(latest.expenseTotal);
     document.getElementById("kpiEnd").innerHTML = fmtEokMainHtml(latest.endBalance);
@@ -600,6 +657,10 @@
     document.getElementById("kpiIncomeSub").textContent = prev ? ("전월 대비 " + fmtSignedEok(latest.incomeTotal - prev.incomeTotal)) : "-";
     document.getElementById("kpiExpenseSub").textContent = prev ? ("전월 대비 " + fmtSignedEok(latest.expenseTotal - prev.expenseTotal)) : "-";
     document.getElementById("kpiEndSub").textContent = "기초 대비 " + fmtSignedEok(latest.endBalance - latest.base);
+
+    var curBal = state.balance.length ? state.balance[state.balance.length - 1] : null;
+    document.getElementById("kpiCurrent").innerHTML = curBal ? fmtEokMainHtml(curBal.amount) : "-";
+    document.getElementById("kpiCurrentSub").textContent = curBal ? formatDotDate(curBal.dateRaw) : "-";
 
     var last6 = arr.slice(-6);
     renderLineChart(last6);
@@ -880,12 +941,18 @@
       if (!r.ok) throw new Error("detail fetch failed");
       return r.text();
     });
+    var balanceReq = fetch(toCsvUrl(BALANCE_URL) + "&t=" + Date.now()).then(function(r){
+      if (!r.ok) throw new Error("balance fetch failed");
+      return r.text();
+    });
 
-    Promise.all([summaryReq, detailReq]).then(function(results){
+    Promise.all([summaryReq, detailReq, balanceReq]).then(function(results){
       var summaryRows = parseCSV(results[0]);
       var detailRows = parseCSV(results[1]);
+      var balanceRows = parseCSV(results[2]);
       state.summary = buildSummary(summaryRows);
       state.detail = buildDetail(detailRows);
+      state.balance = buildBalance(balanceRows);
       if (state.summary.length === 0) throw new Error("no summary data");
       initApp();
     }).catch(function(err){
