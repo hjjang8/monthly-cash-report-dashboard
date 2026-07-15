@@ -111,13 +111,17 @@
   .detail-controls{display:flex; align-items:center; gap:10px; margin-bottom:16px;}
   .detail-controls label{font-size:13px; color:var(--text-sub);}
   #monthSelect{padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:inherit; background:#fff; color:var(--text-main);}
-  table.detail-table{width:100%; border-collapse:collapse; font-size:13px; min-width:620px;}
-  .detail-table thead th{background:#F0F3F7; padding:10px; text-align:right; font-weight:700; color:var(--deep-navy); border-bottom:1px solid var(--border);}
+  table.detail-table{width:100%; border-collapse:collapse; font-size:13px; min-width:820px;}
+  .detail-table thead th{background:#F0F3F7; padding:10px; text-align:right; font-weight:700; color:var(--deep-navy); border-bottom:1px solid var(--border); white-space:nowrap;}
   .detail-table thead th.label{text-align:left;}
-  .detail-table td{padding:9px 10px; border-bottom:1px solid var(--border); text-align:right;}
-  .detail-table td.label{text-align:left;}
-  .detail-table tr.detail-subtotal td{font-weight:700; background:#F5F7FA; border-top:1px solid #C9D3E0; border-bottom:2px solid #C9D3E0;}
-  .warn-text{margin-top:12px; font-size:12px; color:var(--text-faint);}
+  .detail-table td{padding:9px 10px; border-bottom:1px solid var(--border); text-align:right; white-space:nowrap;}
+  .detail-table td.label{text-align:left; white-space:normal;}
+  .detail-table tr.row-subtotal td{font-weight:700; background:#F5F7FA;}
+  .detail-table tr.row-total td{font-weight:700; color:var(--navy); background:#fff; border-top:1px solid #C9D3E0; border-bottom:2px solid #C9D3E0;}
+  .detail-table tr.row-flat-base td, .detail-table tr.row-flat-end td{background:#EEF3F9;}
+  .detail-table tr.row-flat-end td{border-top:2px solid var(--navy);}
+  .detail-table .num-income{color:var(--income-text);}
+  .detail-table .num-expense{color:var(--expense-text);}
 
   /* Footer */
   .footer{padding:18px 28px 26px; font-size:12px; color:var(--text-faint); text-align:center;}
@@ -214,19 +218,10 @@
           </div>
           <div class="table-scroll">
             <table class="detail-table" id="detailTable">
-              <thead>
-                <tr>
-                  <th class="label">구분</th>
-                  <th class="label">항목</th>
-                  <th>금액</th>
-                  <th>비중</th>
-                  <th>전월 대비</th>
-                </tr>
-              </thead>
+              <thead></thead>
               <tbody id="detailTbody"></tbody>
             </table>
           </div>
-          <div class="warn-text" id="detailWarn" hidden></div>
         </div>
       </div>
     </main>
@@ -336,19 +331,26 @@
   }
 
   function buildDetail(rows){
-    var out = [];
+    if (!rows || rows.length === 0) return { monthCols: [], entries: [] };
+    var header = rows[0];
+    var monthCols = [];
+    for (var c = 3; c < header.length; c++){
+      var m = normalizeMonth(header[c]);
+      if (m) monthCols.push({ index: c, month: m });
+    }
+    var entries = [];
     for (var i = 1; i < rows.length; i++){
       var row = rows[i];
       if (!row || row.length === 0) continue;
-      var month = normalizeMonth(row[0]);
-      if (!month) continue;
-      var type = (row[1] || "").trim();
-      var item = (row[2] || "").trim();
-      if (!type || !item) continue;
-      out.push({ month: month, type: type, item: item, amount: parseAmount(row[3]) });
+      var g1 = (row[0] || "").trim();
+      if (!g1) continue;
+      var g2 = (row[1] || "").trim();
+      var g3 = (row[2] || "").trim();
+      var values = {};
+      monthCols.forEach(function(mc){ values[mc.month] = parseAmount(row[mc.index]); });
+      entries.push({ group1: g1, group2: g2, group3: g3, values: values });
     }
-    out.sort(function(a,b){ return a.month < b.month ? -1 : (a.month > b.month ? 1 : 0); });
-    return out;
+    return { monthCols: monthCols, entries: entries };
   }
 
   /* ---------------- Formatting helpers ---------------- */
@@ -369,6 +371,16 @@
     var sign = eok > 0 ? "+" : (eok < 0 ? "-" : "");
     var absStr = Math.abs(eok).toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     return sign + absStr + "억원";
+  }
+
+  function fmtWon(won){
+    return Math.round(won).toLocaleString("ko-KR");
+  }
+
+  function fmtSignedWon(won){
+    var v = Math.round(won);
+    var sign = v > 0 ? "+" : (v < 0 ? "-" : "");
+    return sign + Math.abs(v).toLocaleString("ko-KR");
   }
 
   function formatMonthLabel(month){
@@ -671,85 +683,145 @@
 
   /* ---------------- Detail page (page 3) ---------------- */
 
-  function prevMonthOf(month){
-    var parts = month.split("-").map(Number);
-    var d = new Date(parts[0], parts[1] - 2, 1);
-    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+  var DETAIL_HIER_GROUPS = { "수입": true, "지출": true };
+
+  function groupByOrder(list, keyFn){
+    var order = []; var map = {};
+    list.forEach(function(item){
+      var k = keyFn(item);
+      if (!map[k]) { map[k] = []; order.push(k); }
+      map[k].push(item);
+    });
+    return order.map(function(k){ return { key: k, items: map[k] }; });
   }
 
-  function rowsForDetail(list, total, prevItems){
-    return list.map(function(d){
-      var prevMatch = null;
-      for (var i = 0; i < prevItems.length; i++){
-        if (prevItems[i].type === d.type && prevItems[i].item === d.item){ prevMatch = prevItems[i]; break; }
+  function buildDetailRenderRows(entries, prevMonth, curMonth){
+    var g1Buckets = groupByOrder(entries, function(e){ return e.group1; });
+    var rows = [];
+
+    g1Buckets.forEach(function(bucket){
+      var g1 = bucket.key;
+      if (DETAIL_HIER_GROUPS[g1]){
+        var g2Buckets = groupByOrder(bucket.items, function(e){ return e.group2; });
+        var totalPrev = 0, totalCur = 0, totalHasPrev = false, totalHasCur = false;
+        g2Buckets.forEach(function(g2b){
+          var subPrev = 0, subCur = 0, subHasPrev = false, subHasCur = false;
+          g2b.items.forEach(function(e){
+            var prevVal = prevMonth ? e.values[prevMonth] : undefined;
+            var curVal = e.values[curMonth];
+            rows.push({ rowType: "item", group1: g1, group2: g2b.key, item: e.group3, prev: prevVal, cur: curVal });
+            if (prevVal !== undefined) { subPrev += prevVal; subHasPrev = true; }
+            if (curVal !== undefined) { subCur += curVal; subHasCur = true; }
+          });
+          rows.push({
+            rowType: "subtotal", group1: g1, group2: g2b.key, item: g2b.key + " 소계",
+            prev: subHasPrev ? subPrev : undefined, cur: subHasCur ? subCur : undefined
+          });
+          if (subHasPrev) { totalPrev += subPrev; totalHasPrev = true; }
+          if (subHasCur) { totalCur += subCur; totalHasCur = true; }
+        });
+        rows.push({
+          rowType: "total", group1: g1, group2: null, item: g1 + " 총계",
+          prev: totalHasPrev ? totalPrev : undefined, cur: totalHasCur ? totalCur : undefined
+        });
+      } else {
+        bucket.items.forEach(function(e){
+          var prevVal = prevMonth ? e.values[prevMonth] : undefined;
+          var curVal = e.values[curMonth];
+          rows.push({ rowType: "flat", group1: g1, group2: null, item: e.group3 || g1, prev: prevVal, cur: curVal });
+        });
       }
-      var share = total !== 0 ? round1((d.amount / total) * 100) : null;
-      var diff = prevMatch ? (d.amount - prevMatch.amount) : null;
-      return '<tr>' +
-        '<td class="label">' + escapeHtml(d.type) + "</td>" +
-        '<td class="label">' + escapeHtml(d.item) + "</td>" +
-        "<td>" + fmtEokPlain(d.amount) + "</td>" +
-        "<td>" + (share === null ? "-" : share.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%") + "</td>" +
-        "<td>" + (diff === null ? "-" : fmtSignedEok(diff)) + "</td>" +
-        "</tr>";
-    }).join("");
+    });
+
+    for (var i = 0; i < rows.length; i++){
+      if (rows[i].g1Span !== undefined) continue;
+      var j = i + 1;
+      while (j < rows.length && rows[j].group1 === rows[i].group1) j++;
+      rows[i].g1Span = j - i;
+      for (var k = i + 1; k < j; k++) rows[k].g1Span = 0;
+    }
+    for (var i2 = 0; i2 < rows.length; i2++){
+      if (rows[i2].rowType !== "item" && rows[i2].rowType !== "subtotal") continue;
+      if (rows[i2].g2Span !== undefined) continue;
+      var j2 = i2 + 1;
+      while (j2 < rows.length && (rows[j2].rowType === "item" || rows[j2].rowType === "subtotal") && rows[j2].group2 === rows[i2].group2) j2++;
+      rows[i2].g2Span = j2 - i2;
+      for (var k2 = i2 + 1; k2 < j2; k2++) rows[k2].g2Span = 0;
+    }
+    return rows;
+  }
+
+  function renderDetailRow(r){
+    var trClass = "row-" + r.rowType;
+    if (r.rowType === "flat" && r.group1 === "기초잔액") trClass += " row-flat-base";
+    if (r.rowType === "flat" && r.group1 === "기말잔액") trClass += " row-flat-end";
+
+    var numClass = "";
+    if (r.rowType === "item" || r.rowType === "subtotal"){
+      if (r.group1 === "수입") numClass = "num-income";
+      else if (r.group1 === "지출") numClass = "num-expense";
+    }
+
+    var g1Cell = r.g1Span === 0 ? "" : ('<td class="label"' + (r.g1Span > 1 ? ' rowspan="' + r.g1Span + '"' : "") + '>' + escapeHtml(r.group1) + "</td>");
+    var g2Cell;
+    if (r.rowType === "item" || r.rowType === "subtotal"){
+      g2Cell = r.g2Span === 0 ? "" : ('<td class="label"' + (r.g2Span > 1 ? ' rowspan="' + r.g2Span + '"' : "") + '>' + escapeHtml(r.group2) + "</td>");
+    } else {
+      g2Cell = '<td class="label"></td>';
+    }
+
+    var prevStr = r.prev === undefined ? "-" : fmtWon(r.prev);
+    var curStr = r.cur === undefined ? "-" : fmtWon(r.cur);
+    var diffStr = "-", pctStr = "-";
+    if (r.prev !== undefined && r.cur !== undefined){
+      var diff = r.cur - r.prev;
+      diffStr = fmtSignedWon(diff);
+      pctStr = r.prev !== 0 ? (round1((diff / Math.abs(r.prev)) * 100).toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%") : "-";
+    }
+
+    return '<tr class="' + trClass + '">' +
+      g1Cell + g2Cell +
+      '<td class="label">' + escapeHtml(r.item) + "</td>" +
+      '<td class="' + numClass + '">' + prevStr + "</td>" +
+      '<td class="' + numClass + '">' + curStr + "</td>" +
+      '<td class="' + numClass + '">' + diffStr + "</td>" +
+      "<td>" + pctStr + "</td>" +
+      "</tr>";
+  }
+
+  function buildDetailHead(prevMonth, curMonth){
+    var thead = document.querySelector("#detailTable thead");
+    var prevLabel = prevMonth ? ("전월 (" + prevMonth + ")") : "전월";
+    var curLabel = "당월 (" + curMonth + ")";
+    thead.innerHTML = "<tr>" +
+      '<th class="label">구분</th>' +
+      '<th class="label">분류</th>' +
+      '<th class="label">항목</th>' +
+      "<th>" + prevLabel + "</th>" +
+      "<th>" + curLabel + "</th>" +
+      "<th>증감액</th>" +
+      "<th>증감률</th>" +
+      "</tr>";
   }
 
   function renderDetailTable(month){
-    var tbody = document.getElementById("detailTbody");
-    var prevMonth = prevMonthOf(month);
-    var items = state.detail.filter(function(d){ return d.month === month; });
-    var prevItems = state.detail.filter(function(d){ return d.month === prevMonth; });
+    var monthCols = state.detail.monthCols;
+    var idx = -1;
+    for (var i = 0; i < monthCols.length; i++){ if (monthCols[i].month === month){ idx = i; break; } }
+    var prevMonth = idx > 0 ? monthCols[idx - 1].month : null;
 
-    var income = items.filter(function(d){ return d.type === "수입"; });
-    var expense = items.filter(function(d){ return d.type === "지출"; });
-    var incomeTotal = income.reduce(function(s, d){ return s + d.amount; }, 0);
-    var expenseTotal = expense.reduce(function(s, d){ return s + d.amount; }, 0);
-
-    var prevIncomeItems = prevItems.filter(function(d){ return d.type === "수입"; });
-    var prevExpenseItems = prevItems.filter(function(d){ return d.type === "지출"; });
-    var prevIncomeTotal = prevIncomeItems.reduce(function(s, d){ return s + d.amount; }, 0);
-    var prevExpenseTotal = prevExpenseItems.reduce(function(s, d){ return s + d.amount; }, 0);
-
-    var html = "";
-    html += rowsForDetail(income, incomeTotal, prevItems);
-    html += '<tr class="detail-subtotal"><td class="label">수입</td><td class="label">수입 계</td><td>' +
-      fmtEokPlain(incomeTotal) + "</td><td>" + (income.length ? "100.0%" : "-") + "</td><td>" +
-      (prevIncomeItems.length ? fmtSignedEok(incomeTotal - prevIncomeTotal) : "-") + "</td></tr>";
-
-    html += rowsForDetail(expense, expenseTotal, prevItems);
-    html += '<tr class="detail-subtotal"><td class="label">지출</td><td class="label">지출 계</td><td>' +
-      fmtEokPlain(expenseTotal) + "</td><td>" + (expense.length ? "100.0%" : "-") + "</td><td>" +
-      (prevExpenseItems.length ? fmtSignedEok(expenseTotal - prevExpenseTotal) : "-") + "</td></tr>";
-
-    tbody.innerHTML = html;
-
-    var warnEl = document.getElementById("detailWarn");
-    var summaryRec = null;
-    for (var i = 0; i < state.summary.length; i++){
-      if (state.summary[i].month === month){ summaryRec = state.summary[i]; break; }
-    }
-    var msgs = [];
-    if (summaryRec){
-      var diffIncomeWon = summaryRec.incomeTotal - incomeTotal;
-      var diffExpenseWon = summaryRec.expenseTotal - expenseTotal;
-      if (round1(diffIncomeWon / 1e8) !== 0) msgs.push("요약 데이터(수입 계)와 " + fmtSignedEok(diffIncomeWon) + " 차이");
-      if (round1(diffExpenseWon / 1e8) !== 0) msgs.push("요약 데이터(지출 계)와 " + fmtSignedEok(diffExpenseWon) + " 차이");
-    }
-    if (msgs.length){
-      warnEl.hidden = false;
-      warnEl.textContent = msgs.join(" / ");
-    } else {
-      warnEl.hidden = true;
-    }
+    buildDetailHead(prevMonth, month);
+    var rows = buildDetailRenderRows(state.detail.entries, prevMonth, month);
+    document.getElementById("detailTbody").innerHTML = rows.map(renderDetailRow).join("");
   }
 
   function initDetailPage(){
     var sel = document.getElementById("monthSelect");
-    var months = state.summary.map(function(r){ return r.month; });
-    var optsDesc = months.slice().sort().reverse();
-    sel.innerHTML = optsDesc.map(function(m){ return '<option value="' + m + '">' + formatMonthFull(m) + "</option>"; }).join("");
-    var latestMonth = months[months.length - 1];
+    var monthCols = state.detail.monthCols;
+    var optsDesc = monthCols.slice().reverse();
+    sel.innerHTML = optsDesc.map(function(mc){ return '<option value="' + mc.month + '">' + formatMonthFull(mc.month) + "</option>"; }).join("");
+    if (monthCols.length === 0) return;
+    var latestMonth = monthCols[monthCols.length - 1].month;
     sel.value = latestMonth;
     sel.addEventListener("change", function(){ renderDetailTable(sel.value); });
     renderDetailTable(latestMonth);
