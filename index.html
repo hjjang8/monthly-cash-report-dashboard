@@ -490,9 +490,9 @@
       { key: "incomeOp", label: "수입-영업", color: "#1F3A5F", stack: "income" },
       { key: "incomeFin", label: "수입-재무", color: "#7A9CC6", stack: "income" },
       { key: "incomeEtc", label: "수입-기타", color: "#BCCDE2", stack: "income" },
-      { key: "expInv", label: "지출-투자", color: "#B07E1F", stack: "expense" },
+      { key: "expOpCost", label: "지출-영업", color: "#EBCB8B", stack: "expense" },
       { key: "expFin", label: "지출-재무", color: "#D9A441", stack: "expense" },
-      { key: "expOpCost", label: "지출-영업", color: "#EBCB8B", stack: "expense" }
+      { key: "expInv", label: "지출-투자", color: "#B07E1F", stack: "expense" }
     ];
     var stackTotalLabel = { income: "수입 계", expense: "지출 계" };
 
@@ -618,9 +618,9 @@
     html += '<tr class="row-item"><td class="sticky2 label">기타</td>' + monthCells(monthMap, "incomeEtc", "num-income") + "</tr>";
     html += '<tr class="row-subtotal"><td class="sticky2 label">수입 계</td>' + monthCells(monthMap, "incomeTotal", "num-income") + "</tr>";
 
-    html += '<tr class="row-item"><td class="sticky1" rowspan="4">지출</td><td class="sticky2 label">투자</td>' + monthCells(monthMap, "expInv", "num-expense") + "</tr>";
+    html += '<tr class="row-item"><td class="sticky1" rowspan="4">지출</td><td class="sticky2 label">영업</td>' + monthCells(monthMap, "expOpCost", "num-expense") + "</tr>";
     html += '<tr class="row-item"><td class="sticky2 label">재무</td>' + monthCells(monthMap, "expFin", "num-expense") + "</tr>";
-    html += '<tr class="row-item"><td class="sticky2 label">영업</td>' + monthCells(monthMap, "expOpCost", "num-expense") + "</tr>";
+    html += '<tr class="row-item"><td class="sticky2 label">투자</td>' + monthCells(monthMap, "expInv", "num-expense") + "</tr>";
     html += '<tr class="row-subtotal"><td class="sticky2 label">지출 계</td>' + monthCells(monthMap, "expenseTotal", "num-expense") + "</tr>";
 
     html += '<tr class="row-adjust"><td class="sticky1"></td><td class="sticky2 label">조정</td>' + monthCells(monthMap, "adjust", "") + "</tr>";
