@@ -118,8 +118,9 @@
   .detail-table td{padding:9px 10px; border-bottom:1px solid var(--border); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .detail-table td.label{text-align:left; white-space:normal;}
   .detail-table td.label.g1-strong{font-weight:700;}
+  .detail-table tr.row-item td{background:#fff;}
   .detail-table tr.row-subtotal td{font-weight:700; background:#F5F7FA;}
-  .detail-table tr.row-total td{font-weight:700; color:var(--navy); background:#fff; border-top:1px solid #C9D3E0; border-bottom:2px solid #C9D3E0;}
+  .detail-table tr.row-total td{font-weight:700; color:var(--navy); background:#F5F7FA; border-top:1px solid #C9D3E0; border-bottom:2px solid #C9D3E0;}
   .detail-table tr.row-flat-base td, .detail-table tr.row-flat-end td{background:#EEF3F9;}
   .detail-table tr.row-flat-end td{border-top:2px solid var(--navy);}
   .detail-table .num-income{color:var(--income-text);}
@@ -783,7 +784,7 @@
     }
 
     var g1Text = r.group1Display !== undefined ? r.group1Display : r.group1;
-    var g1Class = "label" + ((g1Text === "수입" || g1Text === "지출") ? " g1-strong" : "");
+    var g1Class = "label" + ((g1Text === "수입" || g1Text === "지출" || g1Text === "조정") ? " g1-strong" : "");
     var g1Cell = r.g1Span === 0 ? "" : ('<td class="' + g1Class + '"' + (r.g1Span > 1 ? ' rowspan="' + r.g1Span + '"' : "") + '>' + escapeHtml(g1Text) + "</td>");
     var g2Cell;
     if (r.rowType === "item" || r.rowType === "subtotal"){
