@@ -108,14 +108,16 @@
   .summary-table .num-expense{color:var(--expense-text);}
 
   /* Detail table */
-  .detail-controls{display:flex; align-items:center; gap:10px; margin-bottom:16px;}
+  .detail-controls{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
+  .detail-controls-left{display:flex; align-items:center; gap:10px;}
   .detail-controls label{font-size:13px; color:var(--text-sub);}
   #monthSelect{padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:inherit; background:#fff; color:var(--text-main);}
-  table.detail-table{width:100%; border-collapse:collapse; font-size:13px; min-width:820px;}
-  .detail-table thead th{background:#F0F3F7; padding:10px; text-align:right; font-weight:700; color:var(--deep-navy); border-bottom:1px solid var(--border); white-space:nowrap;}
+  table.detail-table{width:100%; table-layout:fixed; border-collapse:collapse; font-size:13px; min-width:860px;}
+  .detail-table thead th{background:#F0F3F7; padding:10px; text-align:right; font-weight:700; color:var(--deep-navy); border-bottom:1px solid var(--border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .detail-table thead th.label{text-align:left;}
-  .detail-table td{padding:9px 10px; border-bottom:1px solid var(--border); text-align:right; white-space:nowrap;}
+  .detail-table td{padding:9px 10px; border-bottom:1px solid var(--border); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .detail-table td.label{text-align:left; white-space:normal;}
+  .detail-table td.label.g1-strong{font-weight:700;}
   .detail-table tr.row-subtotal td{font-weight:700; background:#F5F7FA;}
   .detail-table tr.row-total td{font-weight:700; color:var(--navy); background:#fff; border-top:1px solid #C9D3E0; border-bottom:2px solid #C9D3E0;}
   .detail-table tr.row-flat-base td, .detail-table tr.row-flat-end td{background:#EEF3F9;}
@@ -213,11 +215,23 @@
       <div id="page-detail" class="page" hidden>
         <div class="card">
           <div class="detail-controls">
-            <label for="monthSelect">조회 월</label>
-            <select id="monthSelect"></select>
+            <div class="detail-controls-left">
+              <label for="monthSelect">조회 월</label>
+              <select id="monthSelect"></select>
+            </div>
+            <span class="table-unit">단위: 원</span>
           </div>
           <div class="table-scroll">
             <table class="detail-table" id="detailTable">
+              <colgroup>
+                <col style="width:64px">
+                <col style="width:110px">
+                <col style="width:190px">
+                <col style="width:140px">
+                <col style="width:140px">
+                <col style="width:130px">
+                <col style="width:80px">
+              </colgroup>
               <thead></thead>
               <tbody id="detailTbody"></tbody>
             </table>
@@ -728,7 +742,13 @@
         bucket.items.forEach(function(e){
           var prevVal = prevMonth ? e.values[prevMonth] : undefined;
           var curVal = e.values[curMonth];
-          rows.push({ rowType: "flat", group1: g1, group2: null, item: e.group3 || g1, prev: prevVal, cur: curVal });
+          var row = { rowType: "flat", group1: g1, group2: null, item: e.group3 || g1, prev: prevVal, cur: curVal };
+          if (g1 === "기초잔액" || g1 === "기말잔액"){
+            row.group1Display = "";
+            row.group2 = g1;
+            row.item = "";
+          }
+          rows.push(row);
         });
       }
     });
@@ -762,12 +782,14 @@
       else if (r.group1 === "지출") numClass = "num-expense";
     }
 
-    var g1Cell = r.g1Span === 0 ? "" : ('<td class="label"' + (r.g1Span > 1 ? ' rowspan="' + r.g1Span + '"' : "") + '>' + escapeHtml(r.group1) + "</td>");
+    var g1Text = r.group1Display !== undefined ? r.group1Display : r.group1;
+    var g1Class = "label" + ((g1Text === "수입" || g1Text === "지출") ? " g1-strong" : "");
+    var g1Cell = r.g1Span === 0 ? "" : ('<td class="' + g1Class + '"' + (r.g1Span > 1 ? ' rowspan="' + r.g1Span + '"' : "") + '>' + escapeHtml(g1Text) + "</td>");
     var g2Cell;
     if (r.rowType === "item" || r.rowType === "subtotal"){
       g2Cell = r.g2Span === 0 ? "" : ('<td class="label"' + (r.g2Span > 1 ? ' rowspan="' + r.g2Span + '"' : "") + '>' + escapeHtml(r.group2) + "</td>");
     } else {
-      g2Cell = '<td class="label"></td>';
+      g2Cell = '<td class="label">' + (r.group2 ? escapeHtml(r.group2) : "") + "</td>";
     }
 
     var prevStr = r.prev === undefined ? "-" : fmtWon(r.prev);
