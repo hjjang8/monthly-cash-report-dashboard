@@ -485,19 +485,74 @@
   function renderBarChart(data){
     var ctx = document.getElementById("ioChart").getContext("2d");
     var labels = data.map(function(d){ return formatMonthLabel(d.month); });
-    var income = data.map(function(d){ return round1(d.incomeTotal / 1e8); });
-    var expense = data.map(function(d){ return round1(d.expenseTotal / 1e8); });
+
+    var series = [
+      { key: "incomeOp", label: "수입-영업", color: "#1F3A5F", stack: "income" },
+      { key: "incomeFin", label: "수입-재무", color: "#7A9CC6", stack: "income" },
+      { key: "incomeEtc", label: "수입-기타", color: "#BCCDE2", stack: "income" },
+      { key: "expInv", label: "지출-투자", color: "#B07E1F", stack: "expense" },
+      { key: "expFin", label: "지출-재무", color: "#D9A441", stack: "expense" },
+      { key: "expOpCost", label: "지출-영업", color: "#EBCB8B", stack: "expense" }
+    ];
+    var stackTotalLabel = { income: "수입 계", expense: "지출 계" };
+
+    var datasets = series.map(function(s){
+      return {
+        label: s.label,
+        stack: s.stack,
+        data: data.map(function(d){ return round1(d[s.key] / 1e8); }),
+        backgroundColor: s.color,
+        borderColor: "#fff",
+        borderWidth: 1,
+        maxBarThickness: 28
+      };
+    });
+
     if (charts.io) charts.io.destroy();
     charts.io = new Chart(ctx, {
       type: "bar",
-      data: {
-        labels: labels,
-        datasets: [
-          { label: "수입", data: income, backgroundColor: "#7A9CC6", borderRadius: 5, maxBarThickness: 28 },
-          { label: "지출", data: expense, backgroundColor: "#D9A441", borderRadius: 5, maxBarThickness: 28 }
-        ]
-      },
-      options: chartBaseOptions(true)
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "nearest", intersect: true },
+        plugins: {
+          legend: {
+            display: true,
+            position: "top",
+            align: "end",
+            labels: { usePointStyle: true, pointStyle: "circle", boxWidth: 8, boxHeight: 8, color: "#4B5768", font: { size: 12 } }
+          },
+          tooltip: {
+            backgroundColor: "#16293F",
+            cornerRadius: 8,
+            padding: 10,
+            titleFont: { size: 12 },
+            bodyFont: { size: 12.5 },
+            footerFont: { size: 11.5, weight: "normal" },
+            callbacks: {
+              label: function(ctx){
+                var v = ctx.parsed.y.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+                return ctx.dataset.label + " " + v + "억원";
+              },
+              footer: function(items){
+                var item = items[0];
+                var stackId = item.dataset.stack;
+                var sum = 0;
+                item.chart.data.datasets.forEach(function(ds){
+                  if (ds.stack === stackId) sum += ds.data[item.dataIndex];
+                });
+                var v = round1(sum).toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+                return stackTotalLabel[stackId] + " " + v + "억원";
+              }
+            }
+          }
+        },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { color: "#7C8898", font: { size: 11.5 } } },
+          y: { stacked: true, grid: { color: "#EEF1F5" }, ticks: { color: "#7C8898", font: { size: 11.5 }, callback: function(v){ return v + "억"; } } }
+        }
+      }
     });
   }
 
