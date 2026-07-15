@@ -112,10 +112,10 @@
   .detail-controls-left{display:flex; align-items:center; gap:10px;}
   .detail-controls label{font-size:13px; color:var(--text-sub);}
   #monthSelect{padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:inherit; background:#fff; color:var(--text-main);}
-  table.detail-table{width:100%; table-layout:fixed; border-collapse:collapse; font-size:13px; min-width:860px;}
+  table.detail-table{width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:13px; min-width:860px;}
   .detail-table thead th{background:#F0F3F7; padding:10px; text-align:right; font-weight:700; color:var(--deep-navy); border-bottom:1px solid var(--border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .detail-table thead th.label{text-align:left;}
-  .detail-table td{padding:9px 10px; border-bottom:1px solid var(--border); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .detail-table td{padding:9px 10px; border-bottom:1px solid var(--border); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:#fff;}
   .detail-table td.label{text-align:left; white-space:normal;}
   .detail-table td.label.g1-strong{font-weight:700;}
   .detail-table tr.row-item td{background:#fff;}
@@ -123,6 +123,10 @@
   .detail-table tr.row-total td{font-weight:700; color:var(--navy); background:#F5F7FA; border-top:1px solid #C9D3E0; border-bottom:2px solid #C9D3E0;}
   .detail-table tr.row-flat-base td, .detail-table tr.row-flat-end td{background:#EEF3F9;}
   .detail-table tr.row-flat-end td{border-top:2px solid var(--navy);}
+  .detail-table .sticky1{position:sticky; left:0; z-index:2;}
+  .detail-table .sticky2{position:sticky; left:64px; z-index:2;}
+  .detail-table .sticky3{position:sticky; left:174px; z-index:2; box-shadow:6px 0 6px -6px rgba(20,30,45,.28);}
+  .detail-table thead th.sticky1, .detail-table thead th.sticky2, .detail-table thead th.sticky3{z-index:3;}
   .detail-table .num-income{color:var(--income-text);}
   .detail-table .num-expense{color:var(--expense-text);}
 
@@ -784,13 +788,13 @@
     }
 
     var g1Text = r.group1Display !== undefined ? r.group1Display : r.group1;
-    var g1Class = "label" + ((g1Text === "수입" || g1Text === "지출" || g1Text === "조정") ? " g1-strong" : "");
+    var g1Class = "label sticky1" + ((g1Text === "수입" || g1Text === "지출" || g1Text === "조정") ? " g1-strong" : "");
     var g1Cell = r.g1Span === 0 ? "" : ('<td class="' + g1Class + '"' + (r.g1Span > 1 ? ' rowspan="' + r.g1Span + '"' : "") + '>' + escapeHtml(g1Text) + "</td>");
     var g2Cell;
     if (r.rowType === "item" || r.rowType === "subtotal"){
-      g2Cell = r.g2Span === 0 ? "" : ('<td class="label"' + (r.g2Span > 1 ? ' rowspan="' + r.g2Span + '"' : "") + '>' + escapeHtml(r.group2) + "</td>");
+      g2Cell = r.g2Span === 0 ? "" : ('<td class="label sticky2"' + (r.g2Span > 1 ? ' rowspan="' + r.g2Span + '"' : "") + '>' + escapeHtml(r.group2) + "</td>");
     } else {
-      g2Cell = '<td class="label">' + (r.group2 ? escapeHtml(r.group2) : "") + "</td>";
+      g2Cell = '<td class="label sticky2">' + (r.group2 ? escapeHtml(r.group2) : "") + "</td>";
     }
 
     var prevStr = r.prev === undefined ? "-" : fmtWon(r.prev);
@@ -804,7 +808,7 @@
 
     return '<tr class="' + trClass + '">' +
       g1Cell + g2Cell +
-      '<td class="label">' + escapeHtml(r.item) + "</td>" +
+      '<td class="label sticky3">' + escapeHtml(r.item) + "</td>" +
       '<td class="' + numClass + '">' + prevStr + "</td>" +
       '<td class="' + numClass + '">' + curStr + "</td>" +
       '<td class="' + numClass + '">' + diffStr + "</td>" +
@@ -817,9 +821,9 @@
     var prevLabel = prevMonth ? ("전월 (" + prevMonth + ")") : "전월";
     var curLabel = "당월 (" + curMonth + ")";
     thead.innerHTML = "<tr>" +
-      '<th class="label">구분</th>' +
-      '<th class="label">분류</th>' +
-      '<th class="label">항목</th>' +
+      '<th class="label sticky1">구분</th>' +
+      '<th class="label sticky2">분류</th>' +
+      '<th class="label sticky3">항목</th>' +
       "<th>" + prevLabel + "</th>" +
       "<th>" + curLabel + "</th>" +
       "<th>증감액</th>" +
