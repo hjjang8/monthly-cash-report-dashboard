@@ -124,6 +124,7 @@
   .detail-table tr.row-item td{background:#fff;}
   .detail-table tr.row-subtotal td{font-weight:700; background:#F5F7FA;}
   .detail-table tr.row-total td{font-weight:700; color:var(--navy); background:#F5F7FA; border-top:1px solid #C9D3E0; border-bottom:2px solid #C9D3E0;}
+  .detail-table tr.row-total.expense-total td{color:var(--expense-text);}
   .detail-table tr.row-flat-base td, .detail-table tr.row-flat-end td{background:#EEF3F9;}
   .detail-table tr.row-flat-end td{border-top:2px solid var(--navy);}
   .detail-table .sticky1{position:sticky; left:0; z-index:2;}
@@ -855,6 +856,7 @@
 
   function renderDetailRow(r){
     var trClass = "row-" + r.rowType;
+    if (r.rowType === "total" && r.group1 === "지출") trClass += " expense-total";
     if (r.rowType === "flat" && r.group1 === "기초잔액") trClass += " row-flat-base";
     if (r.rowType === "flat" && r.group1 === "기말잔액") trClass += " row-flat-end";
 
