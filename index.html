@@ -342,22 +342,39 @@
   /* ---------------- Data building ---------------- */
 
   function buildSummary(rows){
-    var out = [];
+    if (!rows || rows.length === 0) return [];
+    var header = rows[0];
+    var fieldByLabel = {
+      "기초잔액": "base",
+      "수입-영업": "incomeOp",
+      "수입-재무": "incomeFin",
+      "수입-기타": "incomeEtc",
+      "지출-영업": "expOpCost",
+      "지출-재무": "expFin",
+      "지출-투자": "expInv",
+      "조정": "adjust"
+    };
+    var rowByField = {};
     for (var i = 1; i < rows.length; i++){
-      var row = rows[i];
-      if (!row || row.length === 0) continue;
-      var month = normalizeMonth(row[0]);
+      var label = String(rows[i][0] || "").replace(/\s/g, "");
+      var field = fieldByLabel[label];
+      if (field) rowByField[field] = rows[i];
+    }
+
+    var out = [];
+    for (var c = 1; c < header.length; c++){
+      var month = normalizeMonth(header[c]);
       if (!month) continue;
       var rec = {
         month: month,
-        base: parseAmount(row[1]),
-        incomeOp: parseAmount(row[2]),
-        incomeFin: parseAmount(row[3]),
-        incomeEtc: parseAmount(row[4]),
-        expOpCost: parseAmount(row[5]),
-        expFin: parseAmount(row[6]),
-        expInv: parseAmount(row[7]),
-        adjust: parseAmount(row[8])
+        base: parseAmount(rowByField.base && rowByField.base[c]),
+        incomeOp: parseAmount(rowByField.incomeOp && rowByField.incomeOp[c]),
+        incomeFin: parseAmount(rowByField.incomeFin && rowByField.incomeFin[c]),
+        incomeEtc: parseAmount(rowByField.incomeEtc && rowByField.incomeEtc[c]),
+        expOpCost: parseAmount(rowByField.expOpCost && rowByField.expOpCost[c]),
+        expFin: parseAmount(rowByField.expFin && rowByField.expFin[c]),
+        expInv: parseAmount(rowByField.expInv && rowByField.expInv[c]),
+        adjust: parseAmount(rowByField.adjust && rowByField.adjust[c])
       };
       out.push(rec);
     }
